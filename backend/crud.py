@@ -59,6 +59,68 @@ def delete_bill(db: Session, bill_id: int):
         db.commit()
     return bill
 
+from datetime import date, timedelta
+import calendar
+
+def add_months(dt: date, months: int = 1) -> date:
+    """
+    Safely add months to a date (handles month overflow).
+    Example: Jan 31 + 1 month -> Feb 28 (or 29)
+    """
+    month = dt.month - 1 + months
+    year = dt.year + month // 12
+    month = month % 12 + 1
+    day = min(dt.day, calendar.monthrange(year, month)[1])
+    return date(year, month, day)
+
+def mark_bill_paid(db: Session, bill_id: int, user_id: int):
+    """
+    Marks a bill as paid. If the bill's repeat_interval == 'monthly',
+    create a new bill for the next month (same fields, new due_date).
+    """
+    bill = get_bill(db, bill_id)
+    if not bill or bill.user_id != user_id:
+        return None
+
+    bill.is_paid = True
+    db.add(bill)
+    db.commit()
+    db.refresh(bill)
+
+    # If recurring monthly, create the next bill
+    try:
+        if bill.repeat_interval and bill.repeat_interval.lower() == "monthly":
+            # compute next due date
+            if bill.due_date:
+                next_due = add_months(bill.due_date, 1)
+            else:
+                # fallback: use today's date + 1 month
+                next_due = add_months(date.today(), 1)
+
+            new_bill = models.Bill(
+                user_id=bill.user_id,
+                title=bill.title,
+                type=bill.type,
+                amount=bill.amount,
+                due_date=next_due,
+                repeat_interval=bill.repeat_interval,
+                reminder_days=bill.reminder_days,
+                notes=bill.notes,
+                is_paid=False
+            )
+            db.add(new_bill)
+            db.commit()
+            db.refresh(new_bill)
+    except Exception:
+        # swallow any recurring-creation error to avoid marking payment failing;
+        # in production, log it. For now, we silently continue.
+        pass
+
+    return bill
+
+
+
+
 # add these imports at top of crud.py if not present
 from datetime import date, timedelta
 from sqlalchemy import func
