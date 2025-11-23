@@ -1,0 +1,110 @@
+Step 0 — Start the server
+In your backend folder with venv active:
+uvicorn backend.main:app --reload --host 127.0.0.1 --port 8000
+Open browser:
+👉 http://127.0.0.1:8000/docs
+
+Day 1 Test — Signup + Login
+1. Signup
+In Swagger → POST /auth/signup → Try it out:
+{
+  "email": "test1@example.com",
+  "password": "Pass1234"
+}
+. Login
+POST /auth/login → Try it out:
+grant_type = password
+username = test1@example.com
+password = Pass1234
+Expected:
+Status 200
+Returns access_token
+Now click Authorize (lock icon) and paste:
+
+Day 2 Test — Add Bill + List Bills
+3. Add Bill
+POST /bills → Try it out:
+{
+  "title": "Test Electric Bill",
+  "amount": 1500.50,
+  "due_date": "2025-11-25",
+  "type": "bill",
+  "repeat_interval": "monthly",
+  "reminder_days": "7,3,1",
+  "notes": "Dummy bill for testing"
+}
+
+4. List Bills
+GET /bills
+
+Day 3 Test — Dashboard
+5. Dashboard
+GET /dashboard
+Expected:
+{
+  "total_month_unpaid": 1500.5,
+  "upcoming_next_7_days": [],
+  "overdue_count": 0
+}
+
+Day 4 Test — Mark As Paid
+6. Mark bill as paid
+POST /bills/{bill_id}/mark_paid
+Use the bill’s id (example: 1).
+Expected:
+"is_paid": true
+
+7. Verify bill disappears from unpaid totals
+GET /dashboard again.
+Expected changes:
+total_month_unpaid should now be 0
+upcoming_next_7_days should NOT show the bill
+overdue_count should not include the bill
+
+8. Direct Database Check (Optional but Strong Test)
+Open Python:
+python
+Then paste (remember blank line after loop):
+import sqlite3
+conn = sqlite3.connect('dev.db')
+for r in conn.execute("SELECT id, title, is_paid FROM bills"):
+    print(r)
+conn.close()
+
+Expected:
+is_paid should show 1 for the bill you marked paid.
+
+import sqlite3
+conn = sqlite3.connect('dev.db')
+conn.execute("UPDATE users SET phone = ? WHERE email = ?", ("+919205267464", "moun10king2020@gmail.com"))
+conn.commit()
+conn.close()
+
+
+
+========================================
+
+I am working on a project called SmartDues.
+
+Technology:
+- FastAPI backend
+- SQLite dev database
+- JWT auth
+- APScheduler for reminders
+- Twilio + SendGrid for notifications (will enable later)
+
+Completed so far:
+- Day1: Signup + Login using JWT, user table with email & phone.
+- Day2: Bill CRUD (create, list, get, update, delete).
+- Day3: Dashboard endpoint (monthly unpaid, upcoming 7 days, overdue count).
+- Day4: Mark bill as paid endpoint.
+- Day5: Recurring bills: auto-create next-month bill when marked paid.
+- Day6: Payment table + auto record payment when bill is paid.
+- Files implemented: main.py, crud.py, models.py, schemas.py, scheduler.py, notify.py.
+
+Current Status:
+- API works fully.
+- Next: enable WhatsApp/SMS/email and reminder scheduling.
+
+Please continue helping me from this context.
+

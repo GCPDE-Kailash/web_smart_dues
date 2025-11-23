@@ -1,10 +1,19 @@
 # backend/crud.py
-from sqlalchemy.orm import Session
-from backend import models, schemas
-from typing import List, Optional
-from datetime import date
 
-# --- user CRUD ---
+from typing import List, Optional
+from datetime import date, timedelta
+import calendar
+
+from sqlalchemy.orm import Session
+from sqlalchemy import func
+
+from backend import models, schemas
+
+
+# -------------------------------
+# USER CRUD
+# -------------------------------
+
 def get_user(db: Session, user_id: int):
     return db.query(models.User).filter(models.User.id == user_id).first()
 
@@ -18,7 +27,11 @@ def create_user(db: Session, email: str, password_hash: str, phone: Optional[str
     db.refresh(user)
     return user
 
-# --- bills CRUD ---
+
+# -------------------------------
+# BILLS CRUD
+# -------------------------------
+
 def create_bill(db: Session, user_id: int, bill_in: schemas.BillCreate):
     bill = models.Bill(
         user_id=user_id,
@@ -36,7 +49,14 @@ def create_bill(db: Session, user_id: int, bill_in: schemas.BillCreate):
     return bill
 
 def get_bills_for_user(db: Session, user_id: int, skip: int = 0, limit: int = 100) -> List[models.Bill]:
-    return db.query(models.Bill).filter(models.Bill.user_id == user_id).order_by(models.Bill.due_date).offset(skip).limit(limit).all()
+    return (
+        db.query(models.Bill)
+        .filter(models.Bill.user_id == user_id)
+        .order_by(models.Bill.due_date)
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
 
 def get_bill(db: Session, bill_id: int):
     return db.query(models.Bill).filter(models.Bill.id == bill_id).first()
@@ -59,8 +79,10 @@ def delete_bill(db: Session, bill_id: int):
         db.commit()
     return bill
 
-from datetime import date, timedelta
-import calendar
+
+# -------------------------------
+# RECURRING UTILS
+# -------------------------------
 
 def add_months(dt: date, months: int = 1) -> date:
     """
@@ -73,11 +95,12 @@ def add_months(dt: date, months: int = 1) -> date:
     day = min(dt.day, calendar.monthrange(year, month)[1])
     return date(year, month, day)
 
+
+# -------------------------------
+# MARK BILL PAID + AUTO CREATE NEXT MONTH
+# -------------------------------
+
 def mark_bill_paid(db: Session, bill_id: int, user_id: int):
-    """
-    Marks a bill as paid. If the bill's repeat_interval == 'monthly',
-    create a new bill for the next month (same fields, new due_date).
-    """
     bill = get_bill(db, bill_id)
     if not bill or bill.user_id != user_id:
         return None
@@ -87,15 +110,10 @@ def mark_bill_paid(db: Session, bill_id: int, user_id: int):
     db.commit()
     db.refresh(bill)
 
-    # If recurring monthly, create the next bill
+    # Auto-create next recurring bill
     try:
         if bill.repeat_interval and bill.repeat_interval.lower() == "monthly":
-            # compute next due date
-            if bill.due_date:
-                next_due = add_months(bill.due_date, 1)
-            else:
-                # fallback: use today's date + 1 month
-                next_due = add_months(date.today(), 1)
+            next_due = add_months(bill.due_date or date.today(), 1)
 
             new_bill = models.Bill(
                 user_id=bill.user_id,
@@ -106,94 +124,130 @@ def mark_bill_paid(db: Session, bill_id: int, user_id: int):
                 repeat_interval=bill.repeat_interval,
                 reminder_days=bill.reminder_days,
                 notes=bill.notes,
-                is_paid=False
+                is_paid=False,
             )
             db.add(new_bill)
             db.commit()
             db.refresh(new_bill)
+
     except Exception:
-        # swallow any recurring-creation error to avoid marking payment failing;
-        # in production, log it. For now, we silently continue.
-        pass
+        pass  # swallow recurring errors
+
+    # Record payment
+    try:
+        payment_amount = float(bill.amount)
+    except Exception:
+        payment_amount = bill.amount
+
+    create_payment(
+        db,
+        user_id=bill.user_id,
+        payment_in={
+            "bill_id": bill.id,
+            "amount": payment_amount,
+            "method": "manual",
+            "notes": "Marked paid via API",
+        },
+    )
 
     return bill
 
 
+# -------------------------------
+# PAYMENTS CRUD
+# -------------------------------
+
+def create_payment(db: Session, user_id: int, payment_in: dict):
+    p = models.Payment(
+        user_id=user_id,
+        bill_id=payment_in.get("bill_id"),
+        amount=payment_in.get("amount"),
+        method=payment_in.get("method"),
+        notes=payment_in.get("notes"),
+    )
+    db.add(p)
+    db.commit()
+    db.refresh(p)
+    return p
+
+def get_payments_for_user(db: Session, user_id: int, skip: int = 0, limit: int = 100):
+    return (
+        db.query(models.Payment)
+        .filter(models.Payment.user_id == user_id)
+        .order_by(models.Payment.paid_on.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
 
 
-# add these imports at top of crud.py if not present
-from datetime import date, timedelta
-from sqlalchemy import func
-from typing import List
-import backend.models as models
+# -------------------------------
+# DASHBOARD
+# -------------------------------
 
 def get_dashboard(db, user_id: int):
-    """
-    Return:
-      - total_month_unpaid: sum of unpaid bills for current month (float)
-      - upcoming_next_7_days: list of upcoming unpaid bills (dicts)
-      - overdue_count: integer count of unpaid overdue bills
-    """
-
     today = date.today()
 
-    # calculate month start and next month start
+    # Month boundaries
     month_start = today.replace(day=1)
-    if today.month == 12:
-        next_month_start = today.replace(year=today.year + 1, month=1, day=1)
-    else:
-        next_month_start = today.replace(month=today.month + 1, day=1)
+    next_month_start = (
+        today.replace(year=today.year + 1, month=1, day=1)
+        if today.month == 12
+        else today.replace(month=today.month + 1, day=1)
+    )
 
-    # total unpaid dues for current month (use coalesce to return 0 when sum is NULL)
-    total_month = db.query(func.coalesce(func.sum(models.Bill.amount), 0))\
+    # total unpaid dues for current month
+    total_month = (
+        db.query(func.coalesce(func.sum(models.Bill.amount), 0))
         .filter(
             models.Bill.user_id == user_id,
             models.Bill.is_paid == False,
             models.Bill.due_date >= month_start,
-            models.Bill.due_date < next_month_start
-        ).scalar()
+            models.Bill.due_date < next_month_start,
+        )
+        .scalar()
+    )
 
-    # upcoming next 7 days (inclusive)
+    # upcoming 7 days
     next_7 = today + timedelta(days=7)
-    upcoming_q = db.query(models.Bill)\
+    upcoming = (
+        db.query(models.Bill)
         .filter(
             models.Bill.user_id == user_id,
             models.Bill.is_paid == False,
             models.Bill.due_date >= today,
-            models.Bill.due_date <= next_7
-        )\
+            models.Bill.due_date <= next_7,
+        )
         .order_by(models.Bill.due_date)
-
-    upcoming = upcoming_q.all()
+        .all()
+    )
 
     # overdue count
-    overdue_count = db.query(func.count(models.Bill.id))\
+    overdue_count = (
+        db.query(func.count(models.Bill.id))
         .filter(
             models.Bill.user_id == user_id,
             models.Bill.is_paid == False,
-            models.Bill.due_date < today
-        ).scalar()
+            models.Bill.due_date < today,
+        )
+        .scalar()
+    )
 
-    # normalize values for JSON
-    try:
-        total_month_val = float(total_month or 0)
-    except Exception:
-        # fallback if DB returns Decimal-like object
-        total_month_val = float(str(total_month or 0))
-
-    upcoming_list = []
-    for b in upcoming:
-        upcoming_list.append({
+    # Convert for JSON
+    upcoming_list = [
+        {
             "id": b.id,
             "title": b.title,
             "amount": float(b.amount),
-            "due_date": b.due_date.isoformat() if b.due_date else None,
+            "due_date": b.due_date.isoformat(),
             "type": b.type,
-            "is_paid": bool(b.is_paid)
-        })
+            "is_paid": bool(b.is_paid),
+        }
+        for b in upcoming
+    ]
 
     return {
-        "total_month_unpaid": total_month_val,
+        "total_month_unpaid": float(total_month or 0),
         "upcoming_next_7_days": upcoming_list,
-        "overdue_count": int(overdue_count or 0)
+        "overdue_count": int(overdue_count or 0),
     }

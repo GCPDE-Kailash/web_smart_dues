@@ -76,6 +76,16 @@ def update_bill(bill_id: int, bill_update: schemas.BillUpdate, db: Session = Dep
     updated = crud.update_bill(db, bill_id, bill_update.dict(exclude_unset=True))
     return updated
 
+from fastapi import status
+
+@app.post("/bills/{bill_id}/mark_paid", response_model=schemas.BillOut, status_code=status.HTTP_200_OK)
+def mark_paid_route(bill_id: int, db: Session = Depends(get_db), user=Depends(auth.get_current_user)):
+    bill = crud.mark_bill_paid(db, bill_id, user.id)
+    if not bill:
+        raise HTTPException(status_code=404, detail="Bill not found or not yours")
+    return bill
+
+
 @app.delete("/bills/{bill_id}")
 def delete_bill(bill_id: int, db: Session = Depends(get_db), user=Depends(auth.get_current_user)):
     bill = crud.get_bill(db, bill_id)
@@ -90,3 +100,48 @@ def dashboard(db: Session = Depends(get_db), user=Depends(auth.get_current_user)
     data = crud.get_dashboard(db, user.id)
     return data
 
+@app.post("/payments", response_model=schemas.PaymentOut)
+def create_payment_route(payload: schemas.PaymentCreate, db: Session = Depends(get_db), user=Depends(auth.get_current_user)):
+    p = crud.create_payment(db, user.id, payload.dict())
+    return p
+
+@app.get("/payments", response_model=list[schemas.PaymentOut])
+def list_payments_route(db: Session = Depends(get_db), user=Depends(auth.get_current_user)):
+    items = crud.get_payments_for_user(db, user.id)
+    return items
+
+# in backend/main.py
+from backend.scheduler import start_scheduler
+
+# after app = FastAPI(...)
+start_scheduler()
+
+from fastapi.responses import StreamingResponse
+import csv
+from io import StringIO
+from datetime import datetime
+
+@app.get("/payments/export")
+def export_payments(month: str, db: Session = Depends(get_db), user=Depends(auth.get_current_user)):
+    # month format YYYY-MM
+    start = datetime.fromisoformat(month + "-01")
+    if start.month == 12:
+        end = start.replace(year=start.year+1, month=1)
+    else:
+        end = start.replace(month=start.month+1)
+    payments = crud.get_payments_for_user(db, user.id, 0, 1000)
+    # filter by month
+    rows = []
+    for p in payments:
+        paid_on = p.paid_on
+        if not paid_on:
+            continue
+        if paid_on >= start and paid_on < end:
+            rows.append([p.id, p.bill_id, float(p.amount), p.method, paid_on.isoformat()])
+    buf = StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(["id","bill_id","amount","method","paid_on"])
+    writer.writerows(rows)
+    buf.seek(0)
+    filename = f"payments_{month}.csv"
+    return StreamingResponse(buf, media_type="text/csv", headers={"Content-Disposition": f"attachment; filename={filename}"})
