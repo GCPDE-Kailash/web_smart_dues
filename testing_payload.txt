@@ -84,27 +84,187 @@ conn.close()
 
 ========================================
 
-I am working on a project called SmartDues.
+Here is a **complete, clean, copy-paste “Context Summary”** of your entire SmartDues project so you can give it to any new ChatGPT conversation without re-explaining everything.
 
-Technology:
-- FastAPI backend
-- SQLite dev database
-- JWT auth
-- APScheduler for reminders
-- Twilio + SendGrid for notifications (will enable later)
+You can literally paste this entire block into a new chat:
 
-Completed so far:
-- Day1: Signup + Login using JWT, user table with email & phone.
-- Day2: Bill CRUD (create, list, get, update, delete).
-- Day3: Dashboard endpoint (monthly unpaid, upcoming 7 days, overdue count).
-- Day4: Mark bill as paid endpoint.
-- Day5: Recurring bills: auto-create next-month bill when marked paid.
-- Day6: Payment table + auto record payment when bill is paid.
-- Files implemented: main.py, crud.py, models.py, schemas.py, scheduler.py, notify.py.
+---
 
-Current Status:
-- API works fully.
-- Next: enable WhatsApp/SMS/email and reminder scheduling.
+# ✅ **SmartDues Project – Full Context Summary (copy/paste into new chats)**
 
-Please continue helping me from this context.
+I am building a project called **SmartDues**, a full-stack bill-tracking and reminder system.
+Please read this context so you can help me without asking for background again.
 
+---
+
+## **📌 Backend (FastAPI + SQLite)**
+
+### **Tech Stack**
+
+* FastAPI
+* SQLite (`dev.db`)
+* SQLAlchemy ORM
+* JWT Authentication with password hashing
+* Pydantic v2 schemas
+* Uvicorn
+* APScheduler (reminders – coming later)
+* Twilio / SendGrid planned for notifications
+
+### **Backend Files**
+
+```
+backend/
+ ├── main.py
+ ├── crud.py
+ ├── models.py
+ ├── schemas.py
+ ├── auth.py (inside main)
+ ├── scheduler.py
+ ├── notify.py
+```
+
+### **Backend Features Completed (Day 1–6)**
+
+#### **Day 1 – Auth**
+
+* `/auth/signup`
+* `/auth/login`
+* JWT tokens working
+* Password hashed with bcrypt
+
+#### **Day 2 – Bills CRUD**
+
+* `/bills` GET (list)
+* `/bills` POST (create)
+* `/bills/{id}` GET/PUT/DELETE
+
+#### **Day 3 – Dashboard API**
+
+`GET /dashboard` returns:
+
+* total unpaid this month
+* upcoming (next 7 days)
+* overdue count
+
+#### **Day 4 – Mark Bill Paid**
+
+* `/bills/{id}/mark_paid`
+* When paid:
+
+  * `is_paid = True`
+  * If monthly recurring → create next month’s bill
+
+#### **Day 5 – Recurring Logic Finalized**
+
+* Safe month addition
+* New bill auto-generated with same attributes
+* Prevents infinite loops
+
+#### **Day 6 – Payments Table**
+
+Added:
+
+```
+Payment:
+ id
+ user_id
+ bill_id
+ amount
+ method
+ notes
+ paid_on (auto)
+```
+
+* Auto-record payment when bill is marked paid
+* `/payments` list works
+
+### **DB Debug**
+
+I query SQLite using:
+
+```
+sqlite3 dev.db
+SELECT * FROM bills;
+SELECT * FROM payments;
+```
+
+Everything works.
+
+---
+
+## **📌 Frontend (React + Vite + TypeScript + TailwindCSS)**
+
+### **Structure**
+
+```
+frontend/
+ ├── src/
+ │    ├── pages/
+ │    │    ├── Login.tsx
+ │    │    ├── Dashboard.tsx
+ │    │    ├── Bills.tsx
+ │    │    ├── Debug.tsx
+ │    ├── components/
+ │    │    ├── Navbar.tsx
+ │    ├── api/
+ │    │    ├── client.ts
+ │    ├── index.css   (full custom theme)
+```
+
+### **Frontend Features**
+
+* Login page → stores JWT in localStorage
+* Protected routes using Axios interceptor
+* Dashboard page using `/dashboard`
+* Bills page (soon)
+* Debug page to test APIs
+* Added colorful theme using custom CSS
+
+### **Dashboard Extras**
+
+* Hero section with gradient + background image:
+  `sandbox:/mnt/data/49c2c780-1083-435b-9a38-3db6401c9364.png`
+* Improved UI: cards, buttons, badges, glass-effects
+* Auto-refresh when bills are updated via:
+
+```
+window.dispatchEvent(new Event("bills:updated"))
+```
+
+### **Current Dashboard Issue**
+
+I fixed the loading issue — added **initial fetch + event listener**.
+
+---
+
+## **📌 What Still Needs to Be Done**
+
+* Finish Bills List page UI
+* Add "Add Bill" form modal/page
+* Add "Mark Paid" button frontend + confirmation popup
+* Add Payments Page
+* Add setting page for reminder preferences
+* Implement WhatsApp / SMS / Email reminders (Twilio/SendGrid)
+* Eventually convert to mobile app (Flutter or React Native)
+
+---
+
+## **📌 Your Goal as ChatGPT (for new conversations)**
+
+When I ask anything:
+
+* Assume this entire backend + frontend exists
+* Use the file names and structure listed
+* Don’t ask me to re-explain the project
+* If I share code, continue with my architecture
+
+---
+
+## **📌 Sample File Path for Uploaded Screenshot**
+
+If needed, the uploaded screenshot file is available at:
+`sandbox:/mnt/data/49c2c780-1083-435b-9a38-3db6401c9364.png`
+
+---
+
+### ✔️ **This is the full context.**

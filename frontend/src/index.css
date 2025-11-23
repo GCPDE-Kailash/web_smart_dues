@@ -1,0 +1,192 @@
+/* frontend/src/index.css
+   One-file visual theme: Tailwind base + custom design system
+   Uses uploaded screenshot at: sandbox:/mnt/data/30dc26a7-ca9e-421e-a992-9ee84be4d787.png
+*/
+
+/* Tailwind base layers (keep these) */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Import a clean Google font */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
+
+:root{
+  --brand-600: #0ea5a4;   /* teal */
+  --brand-500: #06b6d4;   /* cyan */
+  --accent-500: #7c3aed;  /* purple */
+  --muted: #6b7280;       /* gray-500 */
+  --card-bg: rgba(255,255,255,0.85);
+  --glass: rgba(255,255,255,0.6);
+  --shadow-lg: 0 10px 30px rgba(2,6,23,0.12);
+  --hero-url: url('sandbox:/mnt/data/30dc26a7-ca9e-421e-a992-9ee84be4d787.png');
+  --radius: 14px;
+}
+
+html,body,#root {
+  height: 100%;
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  font-family: 'Inter', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  color: #0f172a;
+}
+
+/* HERO / TOP BANNER */
+.hero {
+  background-image: linear-gradient(90deg, rgba(124,58,237,0.12), rgba(6,182,212,0.06)), var(--hero-url);
+  background-size: cover;
+  background-position: right center;
+  border-radius: 12px;
+  padding: 36px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  box-shadow: var(--shadow-lg);
+}
+
+.hero .hero-text {
+  max-width: 62%;
+}
+
+.hero h1 {
+  margin: 0;
+  font-weight: 800;
+  font-size: 2.4rem;
+  color: #0f172a;
+  letter-spacing: -0.01em;
+}
+
+.hero p {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 0.98rem;
+}
+
+/* NAVBAR */
+nav {
+  background: linear-gradient(90deg, rgba(255,255,255,0.6), rgba(255,255,255,0.4));
+  backdrop-filter: blur(6px);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin: 10px 0;
+}
+
+/* CARD Help */
+.card {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  padding: 18px;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid rgba(15,23,42,0.04);
+}
+
+/* Dashboard cards grid tweak */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 18px;
+}
+@media (min-width: 768px){
+  .dashboard-grid { grid-template-columns: repeat(3, minmax(0,1fr)); }
+}
+
+/* Card headings */
+.card .muted {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.card .big {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-top: 10px;
+}
+
+/* UPCOMING LIST ITEM */
+.upcoming-item {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:12px;
+  border-radius:10px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.75), rgba(255,255,255,0.7));
+  border: 1px solid rgba(2,6,23,0.03);
+}
+.upcoming-item .title {
+  font-weight:600;
+}
+.upcoming-item .meta {
+  color:var(--muted);
+  font-size:0.92rem;
+}
+
+/* Buttons */
+.btn {
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:8px 12px;
+  border-radius:10px;
+  font-weight:600;
+  border: none;
+  cursor:pointer;
+  transition: transform .08s ease, box-shadow .12s ease;
+}
+.btn:active { transform: translateY(1px); }
+.btn-brand {
+  background: linear-gradient(90deg, var(--brand-600), var(--brand-500));
+  color:#fff;
+  box-shadow: 0 8px 20px rgba(6,182,212,0.12);
+}
+.btn-ghost {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid rgba(15,23,42,0.06);
+}
+
+/* Input styles */
+input[type="text"], input[type="email"], input[type="number"], input[type="date"], textarea, select {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(15,23,42,0.06);
+  background: rgba(255,255,255,0.9);
+  outline: none;
+  transition: box-shadow .12s ease, border-color .12s ease;
+  font-size: 0.95rem;
+}
+input:focus, textarea:focus, select:focus {
+  box-shadow: 0 6px 18px rgba(99,102,241,0.06);
+  border-color: var(--accent-500);
+}
+
+/* Bill item badge */
+.badge {
+  background: linear-gradient(90deg, rgba(124,58,237,0.12), rgba(6,182,212,0.08));
+  color: #0f172a;
+  padding: 6px 8px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+/* Small utilities */
+.small-muted { color: var(--muted); font-size: 0.9rem; }
+.section-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 8px; }
+
+/* Footer small */
+footer { margin-top:40px; text-align:center; color:var(--muted); font-size:0.9rem; }
+
+/* make images inside cards rounded and neat */
+.card img { border-radius: 8px; max-width: 100%; height: auto; }
+
+/* Optional: subtle animation for card entrance */
+@keyframes floatin { from { opacity:0; transform: translateY(8px) } to { opacity:1; transform: translateY(0);} }
+.card { animation: floatin .18s ease both; }
+
+/* Responsive tweak for hero graphic */
+@media (max-width: 900px) {
+  .hero { flex-direction: column; gap:12px; background-position: center; }
+  .hero .hero-text { max-width: 100%; }
+}
+
+/* END - theme */
